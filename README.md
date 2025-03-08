@@ -31,7 +31,7 @@ bun add @rbxts/allocator
 
 ```ts
 import { Workspace } from "@rbxts/services";
-import { EObjectPoolType, ObjectPool } from "shared/Utils/ObjectPool";
+import { EObjectPoolType, ObjectPool } from "@rbxts/allocator";
 
 interface IPartData {
 	Part: BasePart;
