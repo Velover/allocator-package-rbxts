@@ -66,6 +66,39 @@ for (const i of $range(0, 200)) {
 }
 ```
 
+### Initialization Behavior
+
+The pool uses lazy initialization - objects are only created when first needed:
+
+```ts
+// No objects are created at this point
+const pool = new PartObjectPool(15, EObjectPoolType.Elastic);
+
+// First call to Use() triggers initialization
+pool.Use(new Color3(1, 0, 0));
+```
+
+If you need to pre-initialize the pool or need parameters before initialization, you can call the protected `Init()` method in your constructor:
+
+```ts
+class CustomPool extends ObjectPool<MyType, StartData> {
+	constructor(size: number, type: EObjectPoolType, customParam: string) {
+		super(size, type);
+		this.customParam = customParam;
+		// Initialize pool immediately instead of on first Use()
+		this.Init();
+	}
+
+	// ...implementation of abstract methods
+}
+```
+
+Benefits:
+
+- Lazy initialization delays resource allocation until needed
+- Explicit initialization gives control when needed
+- Supports constructor parameters needed for object creation
+
 ### Constructor
 
 ```ts
@@ -80,6 +113,52 @@ new ObjectPool(initialSize: number, strategy: EObjectPoolType);
 | `Start(value, data, dispose)` | Activate instance     | On `Use()` call          |
 | `Dispose(value)`              | Deactivate instance   | Before reuse/destruction |
 | `Destroy(value)`              | Cleanup resources     | When pool shrinks        |
+
+#### Public Methods
+
+| Method          | Description                                 |
+| --------------- | ------------------------------------------- |
+| `Use(data)`     | Activates an object from the pool with data |
+| `DestroyPool()` | Destroys all objects and cleans up the pool |
+
+### Strategy Examples
+
+#### Fixed Pool
+
+```ts
+// For memory-critical systems where exceeding the initial size is not allowed
+const fixedPool = new PartObjectPool(10, EObjectPoolType.Fixed);
+// When all 10 items are in use, the oldest active item will be recycled
+```
+
+#### Unbounded Pool
+
+```ts
+// For high-demand scenarios where performance is critical
+const unboundedPool = new PartObjectPool(5, EObjectPoolType.Unbounded);
+// Will create new instances indefinitely as needed
+```
+
+#### FailSilent Pool
+
+```ts
+// For optional visual effects that aren't critical
+const failSilentPool = new PartObjectPool(20, EObjectPoolType.FailSilent);
+// Returns undefined without allocation when pool is exhausted
+```
+
+### Diagnostic Features
+
+The object pool provides debugging information through:
+
+- Creation IDs: Unique identifier for each created object
+- Usage counters: Track how many times an object has been used
+
+### Error Handling
+
+- `FailSilent`: Returns undefined when the pool is exhausted
+- `Fixed`: Recycles the oldest active object when pool is exhausted
+- `DestroyPool()`: Safely cleans up all resources when you're done
 
 ## Performance Characteristics
 
