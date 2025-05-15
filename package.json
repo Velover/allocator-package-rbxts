@@ -1,45 +1,44 @@
 {
-	"name": "@rbxts/allocator",
-	"version": "1.0.1",
-	"description": "",
-	"keywords": [],
-	"homepage": "https://github.com/Velover/allocator-package-rbxts#readme",
-	"bugs": {
-		"url": "https://github.com/Velover/allocator-package-rbxts/issues"
-	},
-	"repository": {
-		"type": "git",
-		"url": "git+https://github.com/Velover/allocator-package-rbxts.git"
-	},
-	"license": "MIT",
-	"author": "Catargo",
-	"type": "commonjs",
-	"main": "out/init.lua",
-	"types": "out/index.d.ts",
-	"files": [
-		"out",
-		"!**/*.tsbuildinfo"
-	],
-	"scripts": {
-		"build": "rbxtsc",
-		"watch": "rbxtsc -w",
-		"prepublishOnly": "npm run build"
-	},
-	"dependencies": {},
-	"devDependencies": {
-		"@rbxts/compiler-types": "^3.0.0-types.0",
-		"@rbxts/types": "^1.0.840",
-		"@typescript-eslint/eslint-plugin": "^8.26.0",
-		"@typescript-eslint/parser": "^8.26.0",
-		"eslint": "^8.57.1",
-		"eslint-config-prettier": "^10.1.1",
-		"eslint-plugin-prettier": "^5.2.3",
-		"eslint-plugin-roblox-ts": "^0.0.36",
-		"prettier": "^3.5.3",
-		"roblox-ts": "^3.0.0",
-		"typescript": "^5.8.2"
-	},
-	"publishConfig": {
-		"access": "public"
-	}
+  "name": "@rbxts/allocator",
+  "version": "1.0.1",
+  "description": "",
+  "keywords": [],
+  "homepage": "https://github.com/Velover/allocator-package-rbxts#readme",
+  "bugs": {
+    "url": "https://github.com/Velover/allocator-package-rbxts/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Velover/allocator-package-rbxts.git"
+  },
+  "license": "MIT",
+  "author": "Catargo",
+  "type": "commonjs",
+  "main": "out/init.lua",
+  "types": "out/index.d.ts",
+  "files": [
+    "out",
+    "!**/*.tsbuildinfo"
+  ],
+  "scripts": {
+    "build": "rbxtsc",
+    "watch": "rbxtsc -w",
+    "prepublishOnly": "npm run build"
+  },
+  "devDependencies": {
+    "@rbxts/compiler-types": "^3.0.0-types.0",
+    "@rbxts/types": "^1.0.852",
+    "@typescript-eslint/eslint-plugin": "^8.26.0",
+    "@typescript-eslint/parser": "^8.26.0",
+    "eslint": "^8.57.1",
+    "eslint-config-prettier": "^10.1.1",
+    "eslint-plugin-prettier": "^5.2.3",
+    "eslint-plugin-roblox-ts": "^0.0.36",
+    "prettier": "^3.5.3",
+    "roblox-ts": "^3.0.0",
+    "typescript": "^5.8.2"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

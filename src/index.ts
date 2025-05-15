@@ -59,6 +59,7 @@ export abstract class ObjectPool<TObjectData, TObjectStartData> {
 	}
 
 	Use(start_data: TObjectStartData) {
+		assert(!this.is_destroyed_, "Object pool is destroyed");
 		const instance = this.AllocateInstance();
 		if (instance === undefined) return;
 		const use_id = instance.UseId;
@@ -100,6 +101,7 @@ export abstract class ObjectPool<TObjectData, TObjectStartData> {
 	private instances_map_ = new Map<number, IObjectPoolInstance<TObjectData>>();
 
 	private object_pool_type_: EObjectPoolType;
+	private is_destroyed_ = false;
 
 	private DisposeOfInstance(instance: IObjectPoolInstance<TObjectData>) {
 		instance.UseId += 1;
@@ -165,5 +167,22 @@ export abstract class ObjectPool<TObjectData, TObjectStartData> {
 		});
 		this.instances_map_.set(instance_creation_id, instance);
 		return instance;
+	}
+
+	/**Destroys the pool */
+	public DestroyPool() {
+		if (this.is_destroyed_) return;
+		for (const used_instance of this.used_instances_list_) {
+			this.DisposeOfInstance(used_instance);
+			this.DestroyInstance(used_instance);
+		}
+		for (const instance of this.instances_list_) {
+			this.DestroyInstance(instance);
+		}
+
+		this.used_instances_list_.clear();
+		this.instances_list_.clear();
+
+		this.is_destroyed_ = true;
 	}
 }
