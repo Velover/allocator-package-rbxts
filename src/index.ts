@@ -17,15 +17,55 @@ interface IObjectPoolInstance<TObjectData> {
 }
 
 export abstract class ObjectPool<TObjectData, TObjectStartData> {
-	constructor(initial_pool_size: number, object_pool_type: EObjectPoolType) {
-		this.initial_pool_size_ = initial_pool_size;
-		this.object_pool_type_ = object_pool_type;
-		for (const _ of $range(0, initial_pool_size - 1)) {
+	constructor(
+		private readonly initial_pool_size_: number,
+		private readonly object_pool_type_: EObjectPoolType,
+	) {}
+
+	Use(start_data: TObjectStartData) {
+		if (!this.is_started_) this.Init();
+
+		assert(!this.is_destroyed_, "Object pool is destroyed");
+		const instance = this.AllocateInstance();
+		if (instance === undefined) return;
+		const use_id = instance.UseId;
+
+		this.Start(instance.Value, start_data, () => {
+			if (instance.UseId !== use_id) {
+				warn("Attemt of disposal when the instance was already disposed");
+				return;
+			}
+
+			this.dispose_event_.Fire(instance.CreationId, instance.UseId);
+		});
+	}
+
+	/**Creates value*/
+	protected abstract Create(): TObjectData;
+	/**Starts to use value with start_data*/
+	protected abstract Start(
+		value: TObjectData,
+		start_data: TObjectStartData,
+		dispose: () => void,
+	): void;
+	/**Stops value from being and allows according cleanups ALWAYS CALLED BEFORE Destroy()*/
+	protected abstract Dispose(value: TObjectData): void;
+	/**Destroys value DO CLEANUP IN Dispose() function
+	 * Make sure that this method is only responsible for destroying
+	 */
+	protected abstract Destroy(value: TObjectData): void;
+
+	protected Init() {
+		if (this.is_started_) return;
+		assert(!this.is_destroyed_, "Object pool is destroyed");
+		assert(this.initial_pool_size_ > 0, "Initial pool size should be greater than 0");
+
+		this.is_started_ = true;
+
+		for (const _ of $range(0, this.initial_pool_size_ - 1)) {
 			const object_pool_instance = this.CreateInstance();
 			this.instances_list_.push(object_pool_instance);
 		}
-
-		assert(initial_pool_size > 0, "Initial pool size should be greater than 0");
 
 		/**event is used to break out of thread
     usually it's task.delay(some_time, dispose)
@@ -58,40 +98,8 @@ export abstract class ObjectPool<TObjectData, TObjectStartData> {
 		});
 	}
 
-	Use(start_data: TObjectStartData) {
-		assert(!this.is_destroyed_, "Object pool is destroyed");
-		const instance = this.AllocateInstance();
-		if (instance === undefined) return;
-		const use_id = instance.UseId;
-
-		this.Start(instance.Value, start_data, () => {
-			if (instance.UseId !== use_id) {
-				warn("Attemt of disposal when the instance was already disposed");
-				return;
-			}
-
-			this.dispose_event_.Fire(instance.CreationId, instance.UseId);
-		});
-	}
-
-	/**Creates value*/
-	protected abstract Create(): TObjectData;
-	/**Starts to use value with start_data*/
-	protected abstract Start(
-		value: TObjectData,
-		start_data: TObjectStartData,
-		dispose: () => void,
-	): void;
-	/**Stops value from being and allows according cleanups ALWAYS CALLED BEFORE Destroy()*/
-	protected abstract Dispose(value: TObjectData): void;
-	/**Destroys value DO CLEANUP IN Dispose() function
-	 * Make sure that this method is only responsible for destroying
-	 */
-	protected abstract Destroy(value: TObjectData): void;
-
 	private dispose_event_: BindableEvent<(instance_creation_id: number, use_id: number) => void> =
 		new Instance("BindableEvent");
-	private initial_pool_size_: number;
 
 	private used_instances_list_: IObjectPoolInstance<TObjectData>[] = [];
 	private instances_list_: IObjectPoolInstance<TObjectData>[] = [];
@@ -99,9 +107,8 @@ export abstract class ObjectPool<TObjectData, TObjectStartData> {
 	private creation_id_ = 0;
 
 	private instances_map_ = new Map<number, IObjectPoolInstance<TObjectData>>();
-
-	private object_pool_type_: EObjectPoolType;
 	private is_destroyed_ = false;
+	private is_started_ = false;
 
 	private DisposeOfInstance(instance: IObjectPoolInstance<TObjectData>) {
 		instance.UseId += 1;
@@ -179,6 +186,8 @@ export abstract class ObjectPool<TObjectData, TObjectStartData> {
 		for (const instance of this.instances_list_) {
 			this.DestroyInstance(instance);
 		}
+
+		this.dispose_event_.Destroy();
 
 		this.used_instances_list_.clear();
 		this.instances_list_.clear();
