@@ -100,7 +100,10 @@ export abstract class ObjectPool<TObjectData, TObjectStartData> {
 	private DestroyInstance(instance: IObjectPoolInstance<TObjectData>) {
 		this.instances_map_.delete(instance.CreationId);
 		this.DestroyObj(instance.Value);
-		this.instances_list_.remove(this.instances_list_.indexOf(instance));
+		const index = this.instances_list_.indexOf(instance);
+		if (index !== -1) {
+			this.instances_list_.remove(index);
+		}
 	}
 
 	private FreeInstance(instance: IObjectPoolInstance<TObjectData>): void {
@@ -181,7 +184,7 @@ export class ManualObjectPool<TObjectData extends defined> {
 	private free_objects_list_: TObjectData[] = [];
 	private all_objects_set_ = new Set<TObjectData>();
 	private used_objects_set_ = new Set<TObjectData>();
-	private used_amount_ = 0;
+	private total_amount_ = 0;
 
 	constructor(
 		private readonly initial_size_: number,
@@ -197,7 +200,7 @@ export class ManualObjectPool<TObjectData extends defined> {
 			this.free_objects_list_.push(obj);
 			this.all_objects_set_.add(obj);
 		}
-		this.used_amount_ = this.initial_size_;
+		this.total_amount_ = this.initial_size_;
 	}
 
 	UseObj(): TObjectData | undefined {
@@ -214,7 +217,7 @@ export class ManualObjectPool<TObjectData extends defined> {
 			const new_obj = this.create_fn_();
 			this.all_objects_set_.add(new_obj);
 			this.used_objects_set_.add(new_obj);
-			this.used_amount_++;
+			this.total_amount_++;
 			return new_obj;
 		}
 
@@ -222,7 +225,7 @@ export class ManualObjectPool<TObjectData extends defined> {
 		const new_obj = this.create_fn_();
 		this.all_objects_set_.add(new_obj);
 		this.used_objects_set_.add(new_obj);
-		this.used_amount_++;
+		this.total_amount_++;
 		return new_obj;
 	}
 
@@ -240,12 +243,12 @@ export class ManualObjectPool<TObjectData extends defined> {
 			return;
 		}
 
-		const saved_used_amount = this.used_amount_--;
 		this.used_objects_set_.delete(obj);
 		if (this.object_pool_type_ === EObjectPoolType.Elastic) {
-			if (saved_used_amount > this.initial_size_) {
+			if (this.total_amount_ > this.initial_size_) {
 				this.destroy_fn_(obj);
 				this.all_objects_set_.delete(obj);
+				this.total_amount_--;
 				return;
 			}
 		}
@@ -260,6 +263,6 @@ export class ManualObjectPool<TObjectData extends defined> {
 		this.free_objects_list_.clear();
 		this.all_objects_set_.clear();
 		this.used_objects_set_.clear();
-		this.used_amount_ = 0;
+		this.total_amount_ = 0;
 	}
 }

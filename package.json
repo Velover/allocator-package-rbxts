@@ -2,7 +2,16 @@
 	"name": "@rbxts/allocator",
 	"version": "1.1.0",
 	"description": "Roblox-TS object pooling system with configurable allocation strategies for efficient object management.",
-	"keywords": [],
+	"keywords": [
+		"roblox",
+		"roblox-ts",
+		"rbxts",
+		"object-pool",
+		"pooling",
+		"allocation",
+		"memory-management",
+		"performance"
+	],
 	"homepage": "https://github.com/Velover/allocator-package-rbxts#readme",
 	"bugs": {
 		"url": "https://github.com/Velover/allocator-package-rbxts/issues"
