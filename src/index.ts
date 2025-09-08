@@ -180,7 +180,10 @@ export abstract class ObjectPool<TObjectData, TObjectStartData> {
 	}
 }
 
-export class ManualObjectPool<TObjectData extends defined> {
+export class ManualObjectPool<
+	TObjectData extends defined,
+	Q extends EObjectPoolType.Elastic | EObjectPoolType.Unbounded | EObjectPoolType.FailSilent,
+> {
 	private free_objects_list_: TObjectData[] = [];
 	private all_objects_set_ = new Set<TObjectData>();
 	private used_objects_set_ = new Set<TObjectData>();
@@ -188,10 +191,7 @@ export class ManualObjectPool<TObjectData extends defined> {
 
 	constructor(
 		private readonly initial_size_: number,
-		private readonly object_pool_type_:
-			| EObjectPoolType.Elastic
-			| EObjectPoolType.Unbounded
-			| EObjectPoolType.FailSilent,
+		private readonly object_pool_type_: Q,
 		private readonly create_fn_: () => TObjectData,
 		private readonly destroy_fn_: (obj: TObjectData) => void,
 	) {
@@ -203,7 +203,7 @@ export class ManualObjectPool<TObjectData extends defined> {
 		this.total_amount_ = this.initial_size_;
 	}
 
-	UseObj(): TObjectData | undefined {
+	UseObj(): Q extends EObjectPoolType.FailSilent ? TObjectData | undefined : TObjectData {
 		const obj = this.free_objects_list_.pop();
 
 		if (obj !== undefined) {
@@ -211,7 +211,7 @@ export class ManualObjectPool<TObjectData extends defined> {
 			return obj;
 		}
 		if (this.object_pool_type_ === EObjectPoolType.FailSilent) {
-			return;
+			return undefined!;
 		}
 		if (this.object_pool_type_ === EObjectPoolType.Unbounded) {
 			const new_obj = this.create_fn_();
