@@ -1,44 +1,44 @@
 {
-  "name": "@rbxts/allocator",
-  "version": "1.0.4",
-  "description": "",
-  "keywords": [],
-  "homepage": "https://github.com/Velover/allocator-package-rbxts#readme",
-  "bugs": {
-    "url": "https://github.com/Velover/allocator-package-rbxts/issues"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/Velover/allocator-package-rbxts.git"
-  },
-  "license": "MIT",
-  "author": "Catargo",
-  "type": "commonjs",
-  "main": "out/init.lua",
-  "types": "out/index.d.ts",
-  "files": [
-    "out",
-    "!**/*.tsbuildinfo"
-  ],
-  "scripts": {
-    "build": "rbxtsc",
-    "watch": "rbxtsc -w",
-    "prepublishOnly": "npm run build"
-  },
-  "devDependencies": {
-    "@rbxts/compiler-types": "^3.0.0-types.0",
-    "@rbxts/types": "^1.0.880",
-    "@typescript-eslint/eslint-plugin": "^8.43.0",
-    "@typescript-eslint/parser": "^8.43.0",
-    "eslint": "^9.35.0",
-    "eslint-config-prettier": "^10.1.8",
-    "eslint-plugin-prettier": "^5.5.4",
-    "eslint-plugin-roblox-ts": "^0.0.36",
-    "prettier": "^3.6.2",
-    "roblox-ts": "^3.0.0",
-    "typescript": "^5.9.2"
-  },
-  "publishConfig": {
-    "access": "public"
-  }
+	"name": "@rbxts/allocator",
+	"version": "1.1.0",
+	"description": "Roblox-TS object pooling system with configurable allocation strategies for efficient object management.",
+	"keywords": [],
+	"homepage": "https://github.com/Velover/allocator-package-rbxts#readme",
+	"bugs": {
+		"url": "https://github.com/Velover/allocator-package-rbxts/issues"
+	},
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/Velover/allocator-package-rbxts.git"
+	},
+	"license": "MIT",
+	"author": "Catargo",
+	"type": "commonjs",
+	"main": "out/init.lua",
+	"types": "out/index.d.ts",
+	"files": [
+		"out",
+		"!**/*.tsbuildinfo"
+	],
+	"scripts": {
+		"build": "rbxtsc",
+		"watch": "rbxtsc -w",
+		"prepublishOnly": "npm run build"
+	},
+	"devDependencies": {
+		"@rbxts/compiler-types": "^3.0.0-types.0",
+		"@rbxts/types": "^1.0.880",
+		"@typescript-eslint/eslint-plugin": "^8.43.0",
+		"@typescript-eslint/parser": "^8.43.0",
+		"eslint": "^9.35.0",
+		"eslint-config-prettier": "^10.1.8",
+		"eslint-plugin-prettier": "^5.5.4",
+		"eslint-plugin-roblox-ts": "^0.0.36",
+		"prettier": "^3.6.2",
+		"roblox-ts": "^3.0.0",
+		"typescript": "^5.9.2"
+	},
+	"publishConfig": {
+		"access": "public"
+	}
 }
