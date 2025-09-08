@@ -16,7 +16,8 @@ interface IObjectPoolInstance<TObjectData> {
 	UseId: number;
 }
 
-function SafeCancelThread(t: thread) {
+function SafeCancelThread(t?: thread) {
+	if (t === undefined) return;
 	const current = coroutine.running();
 	if (current === t) {
 		task.defer(() => {
@@ -62,7 +63,7 @@ export abstract class ObjectPool<TObjectData, TObjectStartData> {
 		dispose: () => void,
 	): void;
 	/**Stops value from being and allows according cleanups ALWAYS CALLED BEFORE Destroy()*/
-	protected abstract DisposeObj(value: TObjectData, safe_cancel_thread: (t: thread) => void): void;
+	protected abstract DisposeObj(value: TObjectData, safe_cancel_thread: (t?: thread) => void): void;
 	/**Destroys value DO CLEANUP IN Dispose() function
 	 * Make sure that this method is only responsible for destroying
 	 */
@@ -126,6 +127,7 @@ export abstract class ObjectPool<TObjectData, TObjectStartData> {
 
 		if (this.object_pool_type_ === EObjectPoolType.FailSilent) return;
 		if (this.object_pool_type_ === EObjectPoolType.Fixed) {
+			//resuse the oldest used instance
 			const used_instance = this.used_instances_list_.shift();
 			//theoretically will never happen because the pool size is always bigger than 0 and if there's no instances in use they will be simply used;
 			if (used_instance === undefined) {
@@ -172,5 +174,92 @@ export abstract class ObjectPool<TObjectData, TObjectStartData> {
 		this.instances_list_.clear();
 
 		this.is_destroyed_ = true;
+	}
+}
+
+export class ManualObjectPool<TObjectData extends defined> {
+	private free_objects_list_: TObjectData[] = [];
+	private all_objects_set_ = new Set<TObjectData>();
+	private used_objects_set_ = new Set<TObjectData>();
+	private used_amount_ = 0;
+
+	constructor(
+		private readonly initial_size_: number,
+		private readonly object_pool_type_:
+			| EObjectPoolType.Elastic
+			| EObjectPoolType.Unbounded
+			| EObjectPoolType.FailSilent,
+		private readonly create_fn_: () => TObjectData,
+		private readonly destroy_fn_: (obj: TObjectData) => void,
+	) {
+		for (const _ of $range(0, this.initial_size_ - 1)) {
+			const obj = this.create_fn_();
+			this.free_objects_list_.push(obj);
+			this.all_objects_set_.add(obj);
+		}
+		this.used_amount_ = this.initial_size_;
+	}
+
+	UseObj(): TObjectData | undefined {
+		const obj = this.free_objects_list_.pop();
+
+		if (obj !== undefined) {
+			this.used_objects_set_.add(obj);
+			return obj;
+		}
+		if (this.object_pool_type_ === EObjectPoolType.FailSilent) {
+			return;
+		}
+		if (this.object_pool_type_ === EObjectPoolType.Unbounded) {
+			const new_obj = this.create_fn_();
+			this.all_objects_set_.add(new_obj);
+			this.used_objects_set_.add(new_obj);
+			this.used_amount_++;
+			return new_obj;
+		}
+
+		//fallback Elastic
+		const new_obj = this.create_fn_();
+		this.all_objects_set_.add(new_obj);
+		this.used_objects_set_.add(new_obj);
+		this.used_amount_++;
+		return new_obj;
+	}
+
+	FreeObj(obj: TObjectData): void {
+		if (!this.used_objects_set_.has(obj)) {
+			if (game.GetService("RunService").IsStudio()) {
+				warn("Attempt of freeing object that is not in use");
+			}
+			return;
+		}
+		if (!this.all_objects_set_.has(obj)) {
+			if (game.GetService("RunService").IsStudio()) {
+				warn("Attempt of freeing object that was not created by this pool");
+			}
+			return;
+		}
+
+		const saved_used_amount = this.used_amount_--;
+		this.used_objects_set_.delete(obj);
+		if (this.object_pool_type_ === EObjectPoolType.Elastic) {
+			if (saved_used_amount > this.initial_size_) {
+				this.destroy_fn_(obj);
+				this.all_objects_set_.delete(obj);
+				return;
+			}
+		}
+
+		this.free_objects_list_.push(obj);
+	}
+
+	Destroy(): void {
+		for (const obj of this.all_objects_set_) {
+			this.destroy_fn_(obj);
+		}
+		this.free_objects_list_.clear();
+		this.all_objects_set_.clear();
+		this.used_objects_set_.clear();
+		this.used_amount_ = 0;
 	}
 }
