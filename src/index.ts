@@ -16,13 +16,24 @@ interface IObjectPoolInstance<TObjectData> {
 	UseId: number;
 }
 
+function SafeCancelThread(t: thread) {
+	const current = coroutine.running();
+	if (current === t) {
+		task.defer(() => {
+			task.cancel(t);
+		});
+	} else {
+		task.cancel(t);
+	}
+}
+
 export abstract class ObjectPool<TObjectData, TObjectStartData> {
 	constructor(
 		private readonly initial_pool_size_: number,
 		private readonly object_pool_type_: EObjectPoolType,
 	) {}
 
-	Use(start_data: TObjectStartData) {
+	UseObject(start_data: TObjectStartData) {
 		if (!this.is_started_) this.Init();
 
 		assert(!this.is_destroyed_, "Object pool is destroyed");
@@ -30,30 +41,32 @@ export abstract class ObjectPool<TObjectData, TObjectStartData> {
 		if (instance === undefined) return;
 		const use_id = instance.UseId;
 
-		this.Start(instance.Value, start_data, () => {
+		this.StartObj(instance.Value, start_data, () => {
 			if (instance.UseId !== use_id) {
-				warn("Attemt of disposal when the instance was already disposed");
+				if (game.GetService("RunService").IsStudio()) {
+					warn("Attempt of disposal when the instance was already disposed");
+				}
 				return;
 			}
 
-			this.dispose_event_.Fire(instance.CreationId, instance.UseId);
+			this.FreeInstance(instance);
 		});
 	}
 
 	/**Creates value*/
-	protected abstract Create(): TObjectData;
+	protected abstract CreateObj(): TObjectData;
 	/**Starts to use value with start_data*/
-	protected abstract Start(
+	protected abstract StartObj(
 		value: TObjectData,
 		start_data: TObjectStartData,
 		dispose: () => void,
 	): void;
 	/**Stops value from being and allows according cleanups ALWAYS CALLED BEFORE Destroy()*/
-	protected abstract Dispose(value: TObjectData): void;
+	protected abstract DisposeObj(value: TObjectData, safe_cancel_thread: (t: thread) => void): void;
 	/**Destroys value DO CLEANUP IN Dispose() function
 	 * Make sure that this method is only responsible for destroying
 	 */
-	protected abstract Destroy(value: TObjectData): void;
+	protected abstract DestroyObj(value: TObjectData): void;
 
 	protected Init() {
 		if (this.is_started_) return;
@@ -66,40 +79,7 @@ export abstract class ObjectPool<TObjectData, TObjectStartData> {
 			const object_pool_instance = this.CreateInstance();
 			this.instances_list_.push(object_pool_instance);
 		}
-
-		/**event is used to break out of thread
-    usually it's task.delay(some_time, dispose)
-    Start will yield the thread and therefore all usage with awaiting etc. 
-    so that should be executed in the different thread, but it has to be cleaned up
-
-    and the problem that you call the cleaning of the thead from the same thread, which is going to cause an error
-
-    ```ts
-    const thread = task.delay(.5, () => task.cancel(thread)); //will cause an error
-    ```
-
-    magically the event is able to break out of this cycle
-
-    ```ts
-    const event = new Instance("BindableEvent");
-    event.Event.Connect(() => task.cancel(thread));
-    const thread = task.delay(.5, () => event.Fire()) //will work
-    ```
-
-    and therefore creation id is used to track the instance
-    in that particular case, any data sent though event will be copied and therefore referent to the original instance will be lost
-    
-    */
-		this.dispose_event_.Event.Connect((creation_id, use_id) => {
-			const instance = this.instances_map_.get(creation_id);
-			if (instance === undefined) return;
-			if (instance.UseId !== use_id) return;
-			this.FreeInstance(instance);
-		});
 	}
-
-	private dispose_event_: BindableEvent<(instance_creation_id: number, use_id: number) => void> =
-		new Instance("BindableEvent");
 
 	private used_instances_list_: IObjectPoolInstance<TObjectData>[] = [];
 	private instances_list_: IObjectPoolInstance<TObjectData>[] = [];
@@ -113,12 +93,12 @@ export abstract class ObjectPool<TObjectData, TObjectStartData> {
 	private DisposeOfInstance(instance: IObjectPoolInstance<TObjectData>) {
 		instance.UseId += 1;
 		instance.IsActive = false;
-		this.Dispose(instance.Value);
+		this.DisposeObj(instance.Value, SafeCancelThread);
 	}
 
 	private DestroyInstance(instance: IObjectPoolInstance<TObjectData>) {
 		this.instances_map_.delete(instance.CreationId);
-		this.Destroy(instance.Value);
+		this.DestroyObj(instance.Value);
 		this.instances_list_.remove(this.instances_list_.indexOf(instance));
 	}
 
@@ -167,7 +147,7 @@ export abstract class ObjectPool<TObjectData, TObjectStartData> {
 	private CreateInstance(): IObjectPoolInstance<TObjectData> {
 		const instance_creation_id = this.creation_id_++;
 		const instance = identity<IObjectPoolInstance<TObjectData>>({
-			Value: this.Create(),
+			Value: this.CreateObj(),
 			IsActive: false,
 			CreationId: instance_creation_id,
 			UseId: 0,
@@ -177,17 +157,16 @@ export abstract class ObjectPool<TObjectData, TObjectStartData> {
 	}
 
 	/**Destroys the pool */
-	public DestroyPool() {
+	public Destroy() {
 		if (this.is_destroyed_) return;
-		for (const used_instance of this.used_instances_list_) {
+		//table clone just in case to avoid freaky stuff with array modification during iteration
+		for (const used_instance of table.clone(this.used_instances_list_)) {
 			this.DisposeOfInstance(used_instance);
 			this.DestroyInstance(used_instance);
 		}
-		for (const instance of this.instances_list_) {
+		for (const instance of table.clone(this.instances_list_)) {
 			this.DestroyInstance(instance);
 		}
-
-		this.dispose_event_.Destroy();
 
 		this.used_instances_list_.clear();
 		this.instances_list_.clear();
