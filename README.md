@@ -176,13 +176,12 @@ const partPool = new ManualObjectPool(
 
 // Get an object from the pool
 const part = partPool.UseObj();
-if (part) {
-	part.Parent = Workspace;
-	// ... use the part
 
-	// Return it to the pool when done
-	partPool.FreeObj(part);
-}
+part.Parent = Workspace;
+// ... use the part
+
+// Return it to the pool when done
+partPool.FreeObj(part);
 
 // Clean up when done
 partPool.Destroy();
