@@ -39,20 +39,20 @@ interface IPartData {
 }
 
 class PartObjectPool extends ObjectPool<IPartData, Color3> {
-	protected Create(): IPartData {
+	protected CreateObj(): IPartData {
 		return identity<IPartData>({ Part: new Instance("Part") });
 	}
-	protected Start(value: IPartData, start_data: Color3, dispose: () => void): void {
+	protected StartObj(value: IPartData, start_data: Color3, dispose: () => void): void {
 		value.Part.Position = new Vector3(0, 100, 0);
 		value.Part.Parent = Workspace;
 		value.Part.Color = start_data;
 		value.Thread = task.delay(3, dispose);
 	}
-	protected Dispose(value: IPartData): void {
+	protected DisposeObj(value: IPartData, safe_cancel_thread: (t?: thread) => void): void {
 		value.Part.Parent = undefined;
-		if (value.Thread !== undefined) task.cancel(value.Thread);
+		safe_cancel_thread(value.Thread);
 	}
-	protected Destroy(value: IPartData): void {
+	protected DestroyObj(value: IPartData): void {
 		print("Destroyed");
 		value.Part.Destroy();
 	}
@@ -62,7 +62,7 @@ const part_object_pool = new PartObjectPool(15, EObjectPoolType.Elastic);
 
 for (const i of $range(0, 200)) {
 	task.wait(0.2);
-	part_object_pool.Use(new Color3(math.random(), math.random(), math.random()));
+	part_object_pool.UseObject(new Color3(math.random(), math.random(), math.random()));
 }
 ```
 
@@ -74,8 +74,8 @@ The pool uses lazy initialization - objects are only created when first needed:
 // No objects are created at this point
 const pool = new PartObjectPool(15, EObjectPoolType.Elastic);
 
-// First call to Use() triggers initialization
-pool.Use(new Color3(1, 0, 0));
+// First call to UseObject() triggers initialization
+pool.UseObject(new Color3(1, 0, 0));
 ```
 
 If you need to pre-initialize the pool or need parameters before initialization, you can call the protected `Init()` method in your constructor:
@@ -85,7 +85,7 @@ class CustomPool extends ObjectPool<MyType, StartData> {
 	constructor(size: number, type: EObjectPoolType, customParam: string) {
 		super(size, type);
 		this.customParam = customParam;
-		// Initialize pool immediately instead of on first Use()
+		// Initialize pool immediately instead of on first UseObject()
 		this.Init();
 	}
 
@@ -107,19 +107,19 @@ new ObjectPool(initialSize: number, strategy: EObjectPoolType);
 
 #### Abstract Methods
 
-| Method                        | Responsibility        | Timing                   |
-| ----------------------------- | --------------------- | ------------------------ |
-| `Create()`                    | Instance construction | Pool initialization      |
-| `Start(value, data, dispose)` | Activate instance     | On `Use()` call          |
-| `Dispose(value)`              | Deactivate instance   | Before reuse/destruction |
-| `Destroy(value)`              | Cleanup resources     | When pool shrinks        |
+| Method                                  | Responsibility        | Timing                   |
+| --------------------------------------- | --------------------- | ------------------------ |
+| `CreateObj()`                           | Instance construction | Pool initialization      |
+| `StartObj(value, data, dispose)`        | Activate instance     | On `UseObject()` call    |
+| `DisposeObj(value, safe_cancel_thread)` | Deactivate instance   | Before reuse/destruction |
+| `DestroyObj(value)`                     | Cleanup resources     | When pool shrinks        |
 
 #### Public Methods
 
-| Method          | Description                                 |
-| --------------- | ------------------------------------------- |
-| `Use(data)`     | Activates an object from the pool with data |
-| `DestroyPool()` | Destroys all objects and cleans up the pool |
+| Method            | Description                                 |
+| ----------------- | ------------------------------------------- |
+| `UseObject(data)` | Activates an object from the pool with data |
+| `Destroy()`       | Destroys all objects and cleans up the pool |
 
 ### Strategy Examples
 
@@ -158,7 +158,43 @@ The object pool provides debugging information through:
 
 - `FailSilent`: Returns undefined when the pool is exhausted
 - `Fixed`: Recycles the oldest active object when pool is exhausted
-- `DestroyPool()`: Safely cleans up all resources when you're done
+- `Destroy()`: Safely cleans up all resources when you're done
+
+## Manual Object Pool
+
+For simpler use cases where you don't need the full lifecycle management, you can use `ManualObjectPool`:
+
+```ts
+import { EObjectPoolType, ManualObjectPool } from "@rbxts/allocator";
+
+const partPool = new ManualObjectPool(
+	10, // initial size
+	EObjectPoolType.Elastic,
+	() => new Instance("Part"), // create function
+	(part) => part.Destroy(), // destroy function
+);
+
+// Get an object from the pool
+const part = partPool.UseObj();
+if (part) {
+	part.Parent = Workspace;
+	// ... use the part
+
+	// Return it to the pool when done
+	partPool.FreeObj(part);
+}
+
+// Clean up when done
+partPool.Destroy();
+```
+
+#### ManualObjectPool Methods
+
+| Method         | Description                                 |
+| -------------- | ------------------------------------------- |
+| `UseObj()`     | Gets an object from the pool                |
+| `FreeObj(obj)` | Returns an object to the pool               |
+| `Destroy()`    | Destroys all objects and cleans up the pool |
 
 ## Performance Characteristics
 
