@@ -176,12 +176,14 @@ const partPool = new ManualObjectPool(
 
 // Get an object from the pool
 const part = partPool.UseObj();
+if (part) {
+	//usually check can be avoided if the pool type is not FailSilent
+	part.Parent = Workspace;
+	// ... use the part
 
-part.Parent = Workspace;
-// ... use the part
-
-// Return it to the pool when done
-partPool.FreeObj(part);
+	// Return it to the pool when done
+	partPool.FreeObj(part);
+}
 
 // Clean up when done
 partPool.Destroy();
