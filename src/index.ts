@@ -1,3 +1,5 @@
+import { ReuseThread } from "./ReusableThread";
+
 export const enum EObjectPoolType {
 	/**Grows infinitely (no instance cleanup) */
 	Unbounded,
@@ -42,15 +44,17 @@ export abstract class ObjectPool<TObjectData, TObjectStartData> {
 		if (instance === undefined) return;
 		const use_id = instance.UseId;
 
-		this.StartObj(instance.Value, start_data, () => {
-			if (instance.UseId !== use_id) {
-				if (game.GetService("RunService").IsStudio()) {
-					warn("Attempt of disposal when the instance was already disposed");
+		ReuseThread(() => {
+			this.StartObj(instance.Value, start_data, () => {
+				if (instance.UseId !== use_id) {
+					if (game.GetService("RunService").IsStudio()) {
+						warn("Attempt of disposal when the instance was already disposed");
+					}
+					return;
 				}
-				return;
-			}
 
-			this.FreeInstance(instance);
+				this.FreeInstance(instance);
+			});
 		});
 	}
 
