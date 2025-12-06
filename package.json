@@ -1,6 +1,6 @@
 {
 	"name": "@rbxts/allocator",
-	"version": "1.1.0",
+	"version": "1.1.1",
 	"description": "Roblox-TS object pooling system with configurable allocation strategies for efficient object management.",
 	"keywords": [
 		"roblox",
