@@ -198,6 +198,7 @@ export class ManualObjectPool<TObjectData extends defined> {
 			| EObjectPoolType.FailSilent,
 		private readonly create_fn_: () => TObjectData,
 		private readonly destroy_fn_: (obj: TObjectData) => void,
+		private readonly dispose_fn_?: (obj: TObjectData) => void,
 	) {
 		for (const _ of $range(0, this.initial_size_ - 1)) {
 			const obj = this.create_fn_();
@@ -247,6 +248,7 @@ export class ManualObjectPool<TObjectData extends defined> {
 			return;
 		}
 
+		this.dispose_fn_?.(obj);
 		this.used_objects_set_.delete(obj);
 		if (this.object_pool_type_ === EObjectPoolType.Elastic) {
 			if (this.total_amount_ > this.initial_size_) {
@@ -261,9 +263,16 @@ export class ManualObjectPool<TObjectData extends defined> {
 	}
 
 	Destroy(): void {
+		if (this.dispose_fn_ !== undefined) {
+			for (const obj of this.used_objects_set_) {
+				this.dispose_fn_(obj);
+			}
+		}
+
 		for (const obj of this.all_objects_set_) {
 			this.destroy_fn_(obj);
 		}
+
 		this.free_objects_list_.clear();
 		this.all_objects_set_.clear();
 		this.used_objects_set_.clear();
